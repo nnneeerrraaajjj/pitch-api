@@ -2,3 +2,4 @@ fastapi
 librosa
 uvicorn
 python-multipart
+webrtcvad

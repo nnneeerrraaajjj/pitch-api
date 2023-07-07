@@ -1,12 +1,13 @@
 from fastapi import FastAPI, UploadFile, Form, File
-import librosa
+from sound_features import (estimate_pitch_yin, measure_speech_clarity_mfcc, estimate_tonality_hps,
+                            measure_energy_rms, detect_silence)
 
 app = FastAPI()
 
 
 @app.get("/")
 def read_root():
-    return {"report": "Bad pitch.. Please dont sell insurance"}
+    return {"report": "Bad pitch.. Please dont sell anything"}
 
 
 @app.post("/process_audio")
@@ -15,9 +16,23 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...))
     with open(audioFile.filename, "wb") as f:
         f.write(audio_contents)
 
-    audio, sr = librosa.load(audioFile.filename)
+    sc = measure_speech_clarity_mfcc(audioFile.filename)
+    st = estimate_tonality_hps(audioFile.filename)
+    sp = estimate_pitch_yin(audioFile.filename)
+    se = measure_energy_rms(audioFile.filename)
+    ss = detect_silence(audioFile.filename)
 
-    sf = librosa.feature.spectral_flatness(y=audio)
+    sc_judger = "Good" if sc >= 0.5 else "Bad"
+    st_judger = "Good" if st is not None else "Bad"
+    sp_judger = "Good" if sp > 0 else "Bad"
+    se_judger = "Good" if se >= 0.1 else "Bad"
 
-    # Return a JSON response
-    return {"message": "Audio processed", "cal": cal, "spectral_flatness": sf.tolist()}
+    return {
+        "message": "Audio processed",
+        "cal": cal,
+        "speech_clarity": {"value": sc, "judger": sc_judger},
+        "tonality": {"value": st, "judger": st_judger},
+        "speech_pitch": {"value": sp, "judger": sp_judger},
+        "speech_energy": {"value": se, "judger": se_judger},
+        "speech silence": ss
+    }
