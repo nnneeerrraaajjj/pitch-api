@@ -1,0 +1,4 @@
+fastapi
+librosa
+uvicorn
+python-multipart
