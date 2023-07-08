@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, UploadFile, Form, File, HTTPException
+from fastapi import FastAPI, UploadFile, Form, File, HTTPException, Request
 from sound_features import (estimate_pitch_yin, measure_speech_clarity_mfcc, estimate_tonality_hps,
                             measure_energy_rms, detect_silence, detect_voice_gender)
 from audio_to_text import transcribe_it
@@ -123,7 +123,11 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
 
 
 @app.get("/final-report/{client_id}")
-def get_report(client_id: str):
+def get_report(client_id: str, request:  Request):
+    # Connect to the SQLite database
+    db_path = "database.db"  # Replace with the path to your SQLite database file
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
 
     # Query the database for the report with voice_analysis key
     query = "SELECT report FROM client_report WHERE client_id = ? AND report LIKE '%\"voice_analysis\"%'"
@@ -139,7 +143,7 @@ def get_report(client_id: str):
 
     conn.close()
 
-    return {"client_id": client_id, "report": report_data}
+    return {"client_id": client_id, "report": json.loads(report_data)}
 
 
 @app.get("/audio_to_text")
