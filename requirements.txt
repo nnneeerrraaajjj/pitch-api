@@ -3,3 +3,4 @@ librosa
 uvicorn
 python-multipart
 webrtcvad
+deepgram-sdk
