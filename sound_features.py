@@ -3,6 +3,23 @@ import numpy as np
 import webrtcvad
 
 
+def detect_voice_gender(audio_file):
+    # Perform Harmonic-Percussive source separation
+    signal, sr = librosa.load(audio_file, sr=None)
+    harmonic, percussive = librosa.effects.hpss(y=signal)
+
+    # Extract the pitch
+    pitches, magnitudes = librosa.piptrack(y=harmonic, sr=sr)
+    pitch = np.mean(pitches)
+
+    threshold = 8.1
+    print("pitch", pitch)
+    if pitch > threshold:
+        return {"female voice": float(pitch)}
+    else:
+        return {"male voice": float(pitch)}
+
+
 def estimate_pitch_yin(audio_file):
     # Load the audio file.
     y, sr = librosa.load(audio_file)
@@ -20,12 +37,10 @@ def measure_speech_clarity_mfcc(audio_file):
     # Load the audio file.
     y, sr = librosa.load(audio_file)
 
-    # Extract Mel-frequency cepstral coefficients (MFCCs).
-    mfcc = librosa.feature.mfcc(y=y, sr=sr)
+    spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
 
-    # Calculate the mean or other statistical measures of the MFCC coefficients as speech clarity indicators.
-    # speech_clarity = np.mean(mfcc)
-    speech_clarity = float(mfcc.mean())
+    # Calculate speech clarity
+    speech_clarity = spectral_contrast.mean()
 
     return speech_clarity
 
