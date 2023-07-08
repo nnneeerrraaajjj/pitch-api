@@ -7,12 +7,30 @@ from pydantic import BaseModel, Field
 import sqlite3
 
 from audio_to_text import transcribe_it
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
 conn = sqlite3.connect('database.db')
 cursor = conn.cursor()
 
+
+# Define CORS origins whitelist
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://example.com",
+    "https://example.com",
+]
+
+# Add CORS middleware with whitelist
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ClientInfoCreate(BaseModel):
     vertical: str = Field(..., min_length=1)

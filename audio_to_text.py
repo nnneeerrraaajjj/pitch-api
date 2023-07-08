@@ -3,7 +3,7 @@ import asyncio
 import math
 from constants import IDEAL_PITCH_ANSWER
 
-DEEPGRAM_API_KEY = 'a92f3b47b78c98b73434b0f3a72253890e093d5c'
+DEEPGRAM_API_KEY = 'cc73478bf5e95d2b83daebb8f038e041ba466730'
 
 async def transcribe_it(filename=None):
     # Initializes the Deepgram SDK
