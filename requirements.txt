@@ -6,3 +6,4 @@ webrtcvad
 deepgram-sdk
 sqlite-utils
 pydantic
+openai
