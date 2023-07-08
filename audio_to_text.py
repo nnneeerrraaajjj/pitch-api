@@ -1,8 +1,9 @@
 from deepgram import Deepgram
 import asyncio
 import math
+from constants import IDEAL_PITCH_ANSWER
 
-DEEPGRAM_API_KEY = '2e292c44f8f7d43c082ebfab70c2f47eb1b1db08'
+DEEPGRAM_API_KEY = 'a92f3b47b78c98b73434b0f3a72253890e093d5c'
 
 async def transcribe_it(filename=None):
     # Initializes the Deepgram SDK
@@ -16,6 +17,7 @@ async def transcribe_it(filename=None):
         response = await deepgram.transcription.prerecorded(source, {'punctuate': True, 'interim_results': False,
                                                                      "model": "base", "language": "hi-Latn"})
     data = response
+    print("data", data)
     words_count = 0
     for i in data['results']['channels'][0]['alternatives'][0]['transcript']:
         if i == ' ':
@@ -29,9 +31,11 @@ async def transcribe_it(filename=None):
         'total_time_taken': data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'],
         'ideal_word_count_per_min': 135,
         'your_words_count_per_min': math.floor(((words_count + 1)/data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'])*60),
+        "ideal_answer": IDEAL_PITCH_ANSWER["2"]
     }
     # return data['results']['channels'][0]['alternatives'][0]['transcript']
 
 
-# asyncio.run(transcribe_it('hockey.mp3'))
+# data = asyncio.run(transcribe_it('filler.mp3'))
+# print("data", data)
 
