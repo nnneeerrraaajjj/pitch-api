@@ -4,6 +4,8 @@ from sound_features import (estimate_pitch_yin, measure_speech_clarity_mfcc, est
                             measure_energy_rms, detect_silence)
 from audio_to_text import transcribe_it
 
+from audio_to_text import transcribe_it
+
 app = FastAPI()
 
 
@@ -42,3 +44,7 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...))
         "speech silence": ss,
         "transcript": transcript
     }
+
+@app.get("/audio_to_text")
+async def transcribe_audio_to_text():
+    return await transcribe_it('hockey.mp3')
