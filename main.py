@@ -105,12 +105,13 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
     res = await create_client_report(payload)
     if cal == '4':
         collated_report = create_collated_report(client_id)
-        print("cool",collated_report)
+        print("cool", collated_report)
         comprehensive_report = generate_summary_report(collated_report['combined_feedback'], collated_report['averages'])
         print(comprehensive_report)
         final_result = {
             "summary": comprehensive_report,
-            "voice_analysis": collated_report['averages']
+            "voice_analysis": collated_report['averages'],
+            "previous_feedbacks": collated_report['all_feedbacks']
         }
         payload = {
             "client_id": client_id,
@@ -255,16 +256,21 @@ def create_collated_report(client_id):
     cursor.execute(query, parameters)
     reports = cursor.fetchall()
 
+    all_feedbacks = []
+
     # Calculate the average of values with the same keys
     averages = defaultdict(list)
     for report_tuple in reports:
         report_json = report_tuple[0]  # Extract the JSON string from the tuple
         report = json.loads(report_json)  # Parse the JSON string into a dictionary
         for key, value in report.items():
-            if key != 'feedback' and key != 'message' and key!='question':
+            if key != 'feedback' and key != 'message' and key!='question' and key != 'previous_feedbacks':
+                print(key)
                 if isinstance(value.get('value'), (int, float)):
                     print(value.get('value'), averages)
                     averages[key].append(value.get('value'))
+            elif key == 'feedback':
+                all_feedbacks.append(value)
 
     averaged_values = {key: sum(values) / len(values) for key, values in averages.items() if values}
     print('averaged_values', averaged_values)
@@ -308,6 +314,7 @@ def create_collated_report(client_id):
     collated_report = {
         'averages': judgers,
         'combined_feedback': combined_feedback,
+        'all_feedbacks': all_feedbacks
     }
 
     return collated_report
