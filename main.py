@@ -105,7 +105,7 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
     if cal == '4':
         collated_report = create_collated_report(client_id)
         print("cool",collated_report)
-        comprehensive_report = generate_summary_report(collated_report['averages'], collated_report['combined_feedback'])
+        comprehensive_report = generate_summary_report(collated_report['combined_feedback'], collated_report['averages'])
         print(comprehensive_report)
         final_result = {
             "summary": comprehensive_report,
@@ -116,8 +116,9 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
             "report": json.dumps(final_result)
         }
         res = await create_client_report(payload)
-
-        return RedirectResponse(url=f'/report/{client_id}', status_code=301)
+        return res
+        # return RedirectResponse(url=f'https://google.com/', status_code=301, headers={"content_type":"application/json"})
+        # return RedirectResponse(url=f'/report/{client_id}', status_code=301)
 
     return res
 
@@ -131,7 +132,7 @@ def get_report(client_id: str, request:  Request):
 
     # Query the database for the report with voice_analysis key
     query = "SELECT report FROM client_report WHERE client_id = ? AND report LIKE '%\"voice_analysis\"%'"
-    cursor.execute(query, client_id)
+    cursor.execute(query, [client_id])
     row = cursor.fetchone()
 
     if row is None:
@@ -196,16 +197,25 @@ openai.api_key = "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"
 prompt_msg = [
     {
       "role": "system",
-      "content": "You are an instructor. Evaluating insurance sales pitch related questions. Compare ideal answer and my answer. Compare the two answers and create a json listing common and missing semantic concepts in the form of entities in a json output. Give a subjective outcome based comparison\n\nTalk in Hinglish and the feedback should be understood by common man \n\nGive an overall score out of 5, clarity score out 5.\n"
+      "content": "You are a helpful assistant. You will be helping an insurance agent who is learning to pitch\nYou will be given the following text:\nQuestion:..\nIdeal Answer : ...\nMy Answer:..\n\nYou need to holistically evaluate the My Answer with respective to Ideal Answer.\n\nproperly compare both and create a tabular json listing common and missing semantic concepts and entities.\n\nGive scores ( 0 to 10)  for [clarity , confidence, content, relevance] in format\n{{ quality: score}}\n\nGive appropriate detailed subjective comments in hinglish. Aap hinglish mai continue karo"
     },
     {
       "role": "user",
-      "content": "Ideal  Answer : While this policy has several beneficial features, it's important to note a couple of limitations. Firstly, there is a long waiting period of 4 years for coverage of pre-existing diseases such as diabetes and cardiovascular problems. It's worth considering that some policies may offer shorter waiting periods, such as 2 years, for coverage of pre-existing conditions.\n\nMy Answer: Is plan mai 4 saal ka waiting period pre existing disease ka cover chalu hone keliye. Kuch plan sirf 2 saal ka dete hai joki kum hai."
+      "content": "Question: Health insurance plan ke liye recommended cover amount kitna hota hai?\nIdeal Answer: \nHealth insurance plan ke liye recommended cover amount generally 5 se 10 lakh ke beech hota hai. Yeh amount aapki personal needs, medical history, aur current healthcare costs par depend karta hai. Ek acchi health insurance plan mein aapko apni family aur apne aap ko sametne ke liye sufficient cover amount chunna chahiye. Agar aap family plan le rahe hain, toh 15 lakh tak ka cover amount bhi consider kar sakte hain. Cover amount ka chunav aapke future expenses, hospitalization costs, aur medical treatments ke hisab se kiya jana chahiye, taki aapko financial protection mile aur aap apne swasthya ki chinta se mukt rah sake.\nMy answer:\nWoh apke konse hospital aur konse type ka  hospital chaiye aur konsa treatment chaiye uske upar decide hota hai.  Par generally 5 lakh ke around hota hai."
     },
     {
       "role": "assistant",
-      "content": "{\n  \"Common Concepts/Entities\": [\n    \"Recommended cover amount\",\n    \"Personal needs\",\n    \"Medical history\",\n    \"Current healthcare costs\",\n    \"Sufficient cover amount\",\n    \"Family coverage\",\n    \"Future expenses\",\n    \"Hospitalization costs\",\n    \"Financial protection\"\n  ],\n  \"Missing Concepts/Entities in Your Answer\": [\n    \"Consideration of family plan\",\n    \"Higher cover amount for family plan\",\n    \"15 lakh cover amount option\",\n    \"Medical treatments\"\n  ]\n}\nYour answer covers most of the common semantic concepts and entities mentioned in the ideal answer. However, it is missing some important points such as the consideration of a family plan, the availability of higher cover amounts for a family plan, the option of a 15 lakh cover amount, and the consideration of medical treatments. Overall, your answer provides a partial representation of the ideal answer, covering a significant portion of the information. \nSubjective Outcome-Based Comparison:\n\nFrom an outcome perspective, the ideal answer provides a more comprehensive and detailed response. It not only includes the range of recommended cover amounts but also factors in personal needs, medical history, current healthcare costs, family coverage, future expenses, hospitalization costs, and financial protection. Your answer, on the other hand, focuses on the decision-making process based on hospitals, treatment types, and a general coverage amount around 5 lakh. While it captures some relevant aspects, it lacks the comprehensive considerations mentioned in the ideal answer.\n\nConsidering the outcome-based subjective comparison, the ideal answer provides a more thorough and informative response, covering a broader range of relevant details and considerations for selecting a health insurance plan.\n\nOverall score is 3.5. out of 5. Clarity 4 out 5"
+      "content": "{\n  \"common\": [\n    \"health insurance plan\",\n    \"recommended cover amount\"\n  ],\n  \"missing\": [\n    \"personal needs\",\n    \"medical history\",\n    \"current healthcare costs\",\n    \"family\",\n    \"future expenses\",\n    \"hospitalization costs\",\n    \"medical treatments\",\n    \"financial protection\",\n    \"swasthya ki chinta\"\n  ]\n}\n\n{\n  \"quality\": {\n    \"clarity\": 5,\n    \"confidence\": 7,\n    \"content\": 3,\n    \"relevance\": 5\n  }\n}\n\nComments:\n- The answer lacks clarity and confidence as it does not provide a specific range for the recommended cover amount.\n- The content is lacking as it does not mention important factors such as personal needs, medical history, and current healthcare costs.\n- The relevance is average as it partially addresses the question but does not provide a comprehensive answer."
+    },
+    {
+      "role": "user",
+      "content": "Question: Kya alternative treatments included hote hai ?\nIdeal Answer :\nThe coverage for alternative medicine treatments works on the principle of full coverage up to the sum insured. If you opt for Ayurvedic, Homeopathic, or other alternative treatments, the insurer will reimburse the expenses incurred for these treatments, as long as the total amount claimed does not exceed the sum insured of your policy. It's a valuable feature that recognizes the growing importance of alternative healthcare approaches.\n\nMy Answer:\nSabhi type ke Ayurvedic aur Homeopathic treatment covered hai."
+    },
+    {
+      "role": "assistant",
+      "content": "{\n  \"common\": [\n    \"alternative treatments\"\n  ],\n  \"missing\": [\n    \"coverage\",\n    \"full coverage\",\n    \"sum insured\",\n    \"reimburse\",\n    \"expenses\",\n    \"policy\",\n    \"valuable feature\",\n    \"alternative healthcare approaches\"\n  ]\n}\n\n{\n  \"quality\": {\n    \"clarity\": 7,\n    \"confidence\": 8,\n    \"content\": 3,\n    \"relevance\": 7\n  }\n}\n\nComments:\n- The answer is clear and confident in stating that Ayurvedic and Homeopathic treatments are covered.\n- However, it lacks important information such as the coverage details, reimbursement process, and the recognition of alternative healthcare approaches as a valuable feature.\n- The relevance is decent as it partially addresses the question but does not provide a comprehensive answer."
     }
+
   ]
 
 
@@ -235,6 +245,10 @@ def evaluator_func(input_json):
 
 def create_collated_report(client_id):
     # Retrieve the reports from the database using raw SQL
+    print(client_id)
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    
     query = "SELECT report FROM client_report where client_id=?"
     parameters = [client_id]
     cursor.execute(query, parameters)
