@@ -3,7 +3,7 @@ import asyncio
 import math
 from constants import IDEAL_PITCH_ANSWER
 
-DEEPGRAM_API_KEY = 'cc73478bf5e95d2b83daebb8f038e041ba466730'
+DEEPGRAM_API_KEY = '133a94251367e7df5f6f1ff266707d263d2101b9'
 
 async def transcribe_it(filename=None):
     # Initializes the Deepgram SDK
@@ -22,15 +22,15 @@ async def transcribe_it(filename=None):
     for i in data['results']['channels'][0]['alternatives'][0]['transcript']:
         if i == ' ':
             words_count = words_count + 1
+    ideal_word_count_given_time = ideal_words_count * math.floor(data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end']) if words_count else 0
 
-    ideal_word_count_given_time = ideal_words_count * math.floor(data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'])
     return {
         'transcript': data['results']['channels'][0]['alternatives'][0]['transcript'],
-        'words_count': words_count + 1,
+        'words_count': words_count + 1 if words_count else 0,
         'ideal_word_count_in_time_u_spoke': math.floor(ideal_word_count_given_time),
-        'total_time_taken': data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'],
+        'total_time_taken': data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'] if words_count else 0,
         'ideal_word_count_per_min': 135,
-        'your_words_count_per_min': math.floor(((words_count + 1)/data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'])*60),
+        'your_words_count_per_min': math.floor(((words_count + 1)/data['results']['channels'][0]['alternatives'][0]['words'][words_count]['end'])*60) if words_count else 0,
         "ideal_answer": IDEAL_PITCH_ANSWER["2"]
     }
     # return data['results']['channels'][0]['alternatives'][0]['transcript']
