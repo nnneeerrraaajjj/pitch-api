@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, UploadFile, Form, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, Form, File, HTTPException, Request, status
 from sound_features import (estimate_pitch_yin, measure_speech_clarity_mfcc, estimate_tonality_hps,
                             measure_energy_rms, detect_silence, detect_voice_gender)
 from audio_to_text import transcribe_it
@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from collections import defaultdict
 from typing import List
 from starlette.responses import RedirectResponse
+from constants import CLIENT_QUESTION
 
 app = FastAPI()
 
@@ -80,7 +81,7 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
 
     analysis = {
         "message": "Audio processed",
-        "question": cal,
+        "question": CLIENT_QUESTION[cal],
         "gender": gender,
         "speech_clarity": {"value": sc, "judger": sc_judger},
         "tonality": {"value": st, "judger": st_judger},
@@ -101,7 +102,6 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
     }
 
     res = await create_client_report(payload)
-    print(cal, type(cal))
     if cal == '4':
         collated_report = create_collated_report(client_id)
         print("cool",collated_report)
@@ -210,21 +210,21 @@ prompt_msg = [
 
 
 def evaluator_func(input_json):
-  print("pinr", input_json)
   ideal_ans = input_json['transcript']['ideal_answer']
-  my_answer = input_json['transcript']['transcript']
-  user_inp = f"Ideal Answer: {ideal_ans} My Answer: {my_answer}"
+  my_answer = input_json['transcript']
+  the_question = input_json['question']
+  user_inp = f"Question:{the_question} Ideal Answer: {ideal_ans} My Answer: {my_answer}"
   user_prompt = {}
   user_prompt["role"] = "user"
   user_prompt["content"] = user_inp
   prompt_msg.append(user_prompt)
   response = openai.ChatCompletion.create(
-  model="gpt-3.5-turbo",
+  model="gpt-3.5-turbo-16k",
   messages=prompt_msg,
   temperature=0.45,
-  max_tokens=300,
+  max_tokens=1024,
   top_p=1,
-  frequency_penalty=0.3,
+  frequency_penalty=0.0,
   presence_penalty=0
 )
   generated_texts = [
@@ -309,7 +309,7 @@ audio_messages=[
 summary_messages=[
     {
       "role": "system",
-      "content": "You are a helpful assistant. You will be given a feedback json. Summarise the same into 5 actionable points for an insurance agent what he can improve in his pitch and how to improve it . The actionable points should be more on conversational skills and overall insurance knowledge. They are to the point.  The output is simple common man terms \n\n{\n\"feedback_1\":''Your answer covers most of the common semantic concepts and entities mentioned in the ideal answer. However, it is missing some important points such as the consideration of a family plan, the availability of higher cover amounts for a family plan, the option of a 15 lakh cover amount, and the consideration of medical treatments. Overall, your answer provides a partial representation of the ideal answer, covering a significant portion of the information.',\n\"feedback_2\":\n  'From an outcome perspective, the ideal answer provides a more comprehensive and detailed response. It not only includes the range of recommended cover amounts but also factors in personal needs, medical history, current healthcare costs, family coverage, future expenses, hospitalization costs, and financial protection. Your answer, on the other hand, focuses on the decision-making process based on hospitals, treatment types, and a general coverage amount around 5 lakh. While it captures some relevant aspects, it lacks the comprehensive considerations mentioned in the ideal answer.'\n}\n\nAap Hinglish mai bolte ho."
+      "content": "You are a helpful assistant. You will be given a feedback json. Summarise the same into 5 actionable points  just in one sentence.for an insurance agent what he can improve in his pitch and how to improve it . The actionable points should be more on conversational skills and overall insurance knowledge. They are to the point.  The output is simple common man terms \n\n{\n\"feedback_1\":...,\n\"feedback_2\":..,\n}\n\nAap Hinglish mai bolte ho."
     },
     {
       "role": "user",
@@ -317,7 +317,10 @@ summary_messages=[
     },
     {
       "role": "assistant",
-      "content": "Yahaan 5 actionable points hai aapke insurance pitch ko behtar banane ke liye:\n\n1. Parivaar yojana ke baare mein jaankari shaamil karein: Apne pitch mein parivaar coverage ke fayde aur upalabdh vikalp ko highlight karein. Samjhaayein ki parivaar yojana kitni adhik cover amount aur behtar vittiyak suraksha pradaan kar sakti hai.\n\n2. Adhik cover amount ke baare mein batayein: 15 lakh cover amount ka vikalp ko pramukhata dein, jisse graahakon ko samajh mein aaye ki unhein kitne level ki suraksha chunne ka vikalp hai.\n\n3. Chikitsa upachaar par vichar karein: Insurance yojana chunne par alag-alag chikitsa upachaaron aur unke kharche ke baare mein sochne ka zikr karein. Graahakon ko samjhaayein ki unki suraksha ke liye kis tarah ke chikitsa upachaar shamil hain.\n\n4. Vyaktigat zaroorat par dhyaan dein: Apne pitch mein vyaktigat zarooraton, aapke graahakon ki medical history, aur vartaman swasthya mein aane wale kharche ke ba"
+      "content": "1. Include information about family plans and the availability of higher cover amounts for them.\n2. Mention the option of a 15 lakh cover amount.\n3. Consider the importance of medical treatments in the insurance pitch.\n4. Provide a more comprehensive response by considering personal needs, medical history, current healthcare costs, future expenses, and financial protection.\n5. Emphasize the importance of family coverage and hospitalization costs in the insurance pitch."
+    },
+    {
+      "role": "user"
     }
   ]
 def generate_summary_report(feedbacks,audio_scores):
