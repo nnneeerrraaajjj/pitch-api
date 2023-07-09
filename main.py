@@ -111,7 +111,9 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
         final_result = {
             "summary": comprehensive_report,
             "voice_analysis": collated_report['averages'],
-            "previous_feedbacks": collated_report['all_feedbacks']
+            "previous_feedbacks": collated_report['all_feedbacks'],
+            "common": collated_report['common'],
+            "missing": collated_report['missing']
         }
         payload = {
             "client_id": client_id,
@@ -199,7 +201,7 @@ openai.api_key = "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"
 prompt_msg = [
     {
       "role": "system",
-      "content": "You are a helpful assistant. You will be helping an insurance agent who is learning to pitch\nYou will be given the following text:\nQuestion:..\nIdeal Answer : ...\nMy Answer:..\n\nYou need to holistically evaluate the My Answer with respective to Ideal Answer.\n\nproperly compare both and create a tabular json listing common and missing semantic concepts and entities.\n\nGive scores ( 0 to 10)  for [clarity , confidence, content, relevance] in format\n{{ quality: score}}\n\nGive appropriate detailed subjective comments in hinglish. Aap hinglish mai continue karo"
+      "content": "You are a helpful assistant. You will be helping an insurance agent who is learning to pitch\nYou will be given the following text:\nQuestion:..\nIdeal Answer : ...\nMy Answer:..\n\nYou need to holistically evaluate the My Answer with respective to Ideal Answer.\n\nproperly compare both and create a tabular json listing common and missing semantic concepts and entities.\n\nGive scores ( 0 to 10)  for [clarity , confidence, content, relevance] in format\n{{ quality: score}}\n\nGive appropriate detailed subjective comments in hinglish. Aap hinglish mai continue karo\n\noutput json ka framework \n{ \"common\":[list of common elements],\n\"missing\":[list of missing elements],\n{scores},\n{comments : [..]}}\n\nonly provide a  RFC8259 compliant JSON response  following this format without deviation."
     },
     {
       "role": "user",
@@ -207,20 +209,9 @@ prompt_msg = [
     },
     {
       "role": "assistant",
-      "content": "{\n  \"common\": [\n    \"health insurance plan\",\n    \"recommended cover amount\"\n  ],\n  \"missing\": [\n    \"personal needs\",\n    \"medical history\",\n    \"current healthcare costs\",\n    \"family\",\n    \"future expenses\",\n    \"hospitalization costs\",\n    \"medical treatments\",\n    \"financial protection\",\n    \"swasthya ki chinta\"\n  ]\n}\n\n{\n  \"quality\": {\n    \"clarity\": 5,\n    \"confidence\": 7,\n    \"content\": 3,\n    \"relevance\": 5\n  }\n}\n\nComments:\n- The answer lacks clarity and confidence as it does not provide a specific range for the recommended cover amount.\n- The content is lacking as it does not mention important factors such as personal needs, medical history, and current healthcare costs.\n- The relevance is average as it partially addresses the question but does not provide a comprehensive answer."
-    },
-    {
-      "role": "user",
-      "content": "Question: Kya alternative treatments included hote hai ?\nIdeal Answer :\nThe coverage for alternative medicine treatments works on the principle of full coverage up to the sum insured. If you opt for Ayurvedic, Homeopathic, or other alternative treatments, the insurer will reimburse the expenses incurred for these treatments, as long as the total amount claimed does not exceed the sum insured of your policy. It's a valuable feature that recognizes the growing importance of alternative healthcare approaches.\n\nMy Answer:\nSabhi type ke Ayurvedic aur Homeopathic treatment covered hai."
-    },
-    {
-      "role": "assistant",
-      "content": "{\n  \"common\": [\n    \"alternative treatments\"\n  ],\n  \"missing\": [\n    \"coverage\",\n    \"full coverage\",\n    \"sum insured\",\n    \"reimburse\",\n    \"expenses\",\n    \"policy\",\n    \"valuable feature\",\n    \"alternative healthcare approaches\"\n  ]\n}\n\n{\n  \"quality\": {\n    \"clarity\": 7,\n    \"confidence\": 8,\n    \"content\": 3,\n    \"relevance\": 7\n  }\n}\n\nComments:\n- The answer is clear and confident in stating that Ayurvedic and Homeopathic treatments are covered.\n- However, it lacks important information such as the coverage details, reimbursement process, and the recognition of alternative healthcare approaches as a valuable feature.\n- The relevance is decent as it partially addresses the question but does not provide a comprehensive answer."
+      "content": "{\n  \"common\": [\n    \"recommended cover amount\",\n    \"5 lakh\"\n  ],\n  \"missing\": [\n    \"personal needs\",\n    \"medical history\",\n    \"current healthcare costs\",\n    \"family plan\",\n    \"15 lakh\",\n    \"future expenses\",\n    \"hospitalization costs\",\n    \"medical treatments\",\n    \"financial protection\"\n  ],\n  \"scores\": {\n    \"clarity\": 6,\n    \"confidence\": 7,\n    \"content\": 4,\n    \"relevance\": 5\n  },\n  \"comments\": [\n    \"- Clarity score: The answer is somewhat clear, but it lacks important details and explanations.\\n- Confidence score: The answer shows a moderate level of confidence in providing the information.\\n- Content score: The answer is lacking in important content such as personal needs, medical history, current healthcare costs, family plan, future expenses, hospitalization costs, medical treatments, and financial protection.\\n- Relevance score: The answer is somewhat relevant to the question, but it does not provide a comprehensive response.\"\n  ]\n}"
     }
-
   ]
-
-
 def evaluator_func(input_json):
   ideal_ans = input_json['transcript']['ideal_answer']
   my_answer = input_json['transcript']
@@ -236,14 +227,13 @@ def evaluator_func(input_json):
   temperature=0.45,
   max_tokens=1024,
   top_p=1,
-  frequency_penalty=0.0,
+  frequency_penalty=0.45,
   presence_penalty=0
 )
   generated_texts = [
         choice.message["content"].strip() for choice in response["choices"]
     ]
-  return generated_texts
-
+  return json.loads(generated_texts[0])
 
 def create_collated_report(client_id):
     # Retrieve the reports from the database using raw SQL
@@ -257,6 +247,8 @@ def create_collated_report(client_id):
     reports = cursor.fetchall()
 
     all_feedbacks = []
+    all_common = []
+    all_missing = []
 
     # Calculate the average of values with the same keys
     averages = defaultdict(list)
@@ -270,6 +262,10 @@ def create_collated_report(client_id):
                     print(value.get('value'), averages)
                     averages[key].append(value.get('value'))
             elif key == 'feedback':
+                if value.get('common'):
+                    all_common.extend(value['common'])
+                if value.get('missing'):
+                    all_missing.extend(value['missing'])
                 all_feedbacks.append(value)
 
     averaged_values = {key: sum(values) / len(values) for key, values in averages.items() if values}
@@ -314,7 +310,9 @@ def create_collated_report(client_id):
     collated_report = {
         'averages': judgers,
         'combined_feedback': combined_feedback,
-        'all_feedbacks': all_feedbacks
+        'all_feedbacks': all_feedbacks,
+        'common': list(set(all_common)),
+        'missing': list(set(all_missing))
     }
 
     return collated_report
