@@ -76,6 +76,7 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
     st_judger = "Good" if st is not None else "Bad"
     sp_judger = "Good" if sp > 0.2 else "Bad"
     se_judger = "Good" if se >= 0.1 else "Bad"
+    ss_judger = "Good" if ss[1] < 35 else "Bad"
 
     os.remove(audioFile.filename)
 
@@ -87,7 +88,7 @@ async def process_audio(audioFile: UploadFile = File(...), cal: str = Form(...),
         "tonality": {"value": st, "judger": st_judger},
         "speech_pitch": {"value": sp, "judger": sp_judger},
         "speech_energy": {"value": se, "judger": se_judger},
-        "speech silence": ss,
+        "speech silence": {"value": ss[1], "judger": ss_judger},
         "transcript": transcript
     }
 
@@ -260,11 +261,13 @@ def create_collated_report(client_id):
         report_json = report_tuple[0]  # Extract the JSON string from the tuple
         report = json.loads(report_json)  # Parse the JSON string into a dictionary
         for key, value in report.items():
-            if key != 'feedback' and isinstance(value, (int, float)):
-                averages[key].append(value)
+            if key != 'feedback' and key != 'message' and key!='question':
+                if isinstance(value.get('value'), (int, float)):
+                    print(value.get('value'), averages)
+                    averages[key].append(value.get('value'))
 
     averaged_values = {key: sum(values) / len(values) for key, values in averages.items() if values}
-
+    print('averaged_values', averaged_values)
     # Combine the feedback keys
     combined_feedback = defaultdict(list)
     for report_tuple in reports:
@@ -295,6 +298,10 @@ def create_collated_report(client_id):
             'value': averaged_values.get('speech_energy', 0),
             'judger': "Bad" if averaged_values.get('speech_energy', 0) < 0.1 else "Good"
         },
+        'speech_silence': {
+            'value': averaged_values.get('speech silence', 0),
+            'judger': "Good" if averaged_values.get('speech silence', 0) < 35 else "Bad"
+        }
     }
 
     # Create the collated report
