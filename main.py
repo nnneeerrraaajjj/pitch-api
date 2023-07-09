@@ -236,7 +236,7 @@ def evaluator_func(input_json):
 def create_collated_report(client_id):
     # Retrieve the reports from the database using raw SQL
     query = "SELECT report FROM client_report where client_id=?"
-    parameters = client_id
+    parameters = [client_id]
     cursor.execute(query, parameters)
     reports = cursor.fetchall()
 
@@ -318,9 +318,6 @@ summary_messages=[
     {
       "role": "assistant",
       "content": "1. Include information about family plans and the availability of higher cover amounts for them.\n2. Mention the option of a 15 lakh cover amount.\n3. Consider the importance of medical treatments in the insurance pitch.\n4. Provide a more comprehensive response by considering personal needs, medical history, current healthcare costs, future expenses, and financial protection.\n5. Emphasize the importance of family coverage and hospitalization costs in the insurance pitch."
-    },
-    {
-      "role": "user"
     }
   ]
 def generate_summary_report(feedbacks,audio_scores):
